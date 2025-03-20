@@ -1,40 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast as sonnerToast } from 'sonner';
-import { getStaffMembers } from '@/lib/data';
-
-export type UserRole = 'admin' | 'staff';
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  createdAt: Date;
-  phoneNumber?: string;
-  password?: string;
-}
-
-// Demo users for testing
-const DEMO_USERS: User[] = [
-  {
-    id: '1',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    role: 'admin',
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    name: 'Staff User',
-    email: 'staff@example.com',
-    role: 'staff',
-    createdAt: new Date(),
-  }
-];
+import { loginStaff, logoutStaff } from '@/lib/api';
+import { User as UserType, UserRole } from '@/lib/types';
 
 interface AuthContextType {
-  user: User | null;
+  user: UserType | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -45,20 +16,23 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Check if we have a user in localStorage on mount
+  // Check if we have a token in localStorage on mount
   useEffect(() => {
+    const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    
+    if (token && storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
       } catch (error) {
         console.error('Failed to parse user from localStorage', error);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
       }
     }
     setLoading(false);
@@ -68,60 +42,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     
     try {
-      // Simulate API call to fetch users
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await loginStaff(email, password);
       
-      // Get staff list from localStorage
-      const staffListString = localStorage.getItem('staffList');
-      let staffList: User[] = [];
-      
-      if (staffListString) {
-        try {
-          staffList = JSON.parse(staffListString);
-        } catch (error) {
-          console.error('Failed to parse staff list', error);
-        }
-      }
-      
-      // Find user with matching email and password
-      const matchedUser = staffList.find(staff => 
-        staff.email === email && staff.password === password
-      );
-      
-      if (matchedUser) {
-        // Create a copy without the password for security
-        const userWithoutPassword = { ...matchedUser };
-        delete userWithoutPassword.password;
+      // If login successful, store the user
+      if (response && response.staff) {
+        setUser(response.staff);
+        localStorage.setItem('user', JSON.stringify(response.staff));
         
-        setUser(userWithoutPassword);
-        localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-        
-        sonnerToast.success(`Welcome back, ${userWithoutPassword.name}!`);
+        sonnerToast.success(`Welcome back, ${response.staff.name}!`);
         
         navigate('/dashboard');
         return true;
       } else {
-        // Check demo credentials as fallback
-        const demoUser = DEMO_USERS.find(
-          user => user.email === email && password === 'password'
-        );
-        
-        if (demoUser) {
-          setUser(demoUser);
-          localStorage.setItem('user', JSON.stringify(demoUser));
-          
-          sonnerToast.success(`Welcome to the demo, ${demoUser.name}!`);
-          
-          navigate('/dashboard');
-          return true;
-        }
-        
-        sonnerToast.error('Invalid email or password');
+        sonnerToast.error('Invalid response from server');
         return false;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      sonnerToast.error('An error occurred during login. Please try again.');
+      sonnerToast.error(error.message || 'Invalid email or password');
       return false;
     } finally {
       setLoading(false);
@@ -130,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    logoutStaff(); // This will clear the token
     localStorage.removeItem('user');
     sonnerToast.info('You have been logged out');
     navigate('/login');

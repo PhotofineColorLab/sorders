@@ -11,7 +11,7 @@ import { DeleteOrderDialog } from '@/components/orders/DeleteOrderDialog';
 import { Order, OrderStatus } from '@/lib/types';
 import OrderForm from '@/components/forms/OrderForm';
 import { PaginationWrapper } from '@/components/ui/pagination-wrapper';
-import { fetchOrders, deleteOrderAPI, updateOrderAPI } from '@/lib/api';
+import { fetchOrders, deleteOrder, updateOrder } from '@/lib/api';
 
 export default function Orders() {
   const navigate = useNavigate();
@@ -65,7 +65,7 @@ export default function Orders() {
         updates.dispatchDate = new Date();
       }
       
-      const updatedOrder = await updateOrderAPI(orderId, updates);
+      const updatedOrder = await updateOrder(orderId, updates);
       
       setOrders(
         orders.map(order => (order._id === orderId ? updatedOrder : order))
@@ -82,7 +82,7 @@ export default function Orders() {
 
   const handleDeleteOrder = async (orderId: string) => {
     try {
-      await deleteOrderAPI(orderId);
+      await deleteOrder(orderId);
       setOrders(orders.filter(order => order._id !== orderId));
       setIsDeleteDialogOpen(false);
       toast.success('Order deleted successfully');

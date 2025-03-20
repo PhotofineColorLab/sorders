@@ -56,19 +56,20 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { addStaffMember, deleteStaffMember, getStaffMembers, updateStaffMember } from '@/lib/data';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { User as UserType, UserRole } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { fetchStaff, createStaff, updateStaff, deleteStaff } from '@/lib/api';
 
 export default function Staff() {
   const { user: currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [staff, setStaff] = useState(getStaffMembers());
+  const [staff, setStaff] = useState<UserType[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<UserType | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Form states
   const [staffName, setStaffName] = useState('');
@@ -78,27 +79,23 @@ export default function Staff() {
   const [staffPassword, setStaffPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
-  // Initialize staff list from localStorage on component mount
+  // Fetch staff data on component mount
   useEffect(() => {
-    const staffListString = localStorage.getItem('staffList');
-    if (staffListString) {
-      try {
-        const parsedStaffList = JSON.parse(staffListString);
-        setStaff(parsedStaffList);
-      } catch (error) {
-        console.error('Failed to parse staff list from localStorage', error);
-        // Fallback to default staff list
-        const defaultStaff = getStaffMembers();
-        setStaff(defaultStaff);
-        localStorage.setItem('staffList', JSON.stringify(defaultStaff));
-      }
-    } else {
-      // If no staff list in localStorage, initialize with default and save to localStorage
-      const defaultStaff = getStaffMembers();
-      setStaff(defaultStaff);
-      localStorage.setItem('staffList', JSON.stringify(defaultStaff));
-    }
+    loadStaff();
   }, []);
+  
+  const loadStaff = async () => {
+    try {
+      setIsLoading(true);
+      const staffData = await fetchStaff();
+      setStaff(staffData);
+    } catch (error) {
+      console.error('Failed to fetch staff:', error);
+      toast.error('Failed to load staff members');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const resetForm = () => {
     setStaffName('');
@@ -128,18 +125,8 @@ export default function Staff() {
 
   const handleDeleteStaff = async (staffId: string) => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      deleteStaffMember(staffId);
-      
-      // Update local state
-      const updatedStaffList = staff.filter(s => s.id !== staffId);
-      setStaff(updatedStaffList);
-      
-      // Update localStorage
-      localStorage.setItem('staffList', JSON.stringify(updatedStaffList));
-      
+      await deleteStaff(staffId);
+      setStaff(staff.filter(s => s.id !== staffId));
       setIsDeleteDialogOpen(false);
       toast.success('Staff member deleted successfully');
     } catch (error) {
@@ -152,9 +139,6 @@ export default function Staff() {
     e.preventDefault();
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
       if (isEditing && selectedStaff) {
         // Update existing staff
         const updates: Partial<UserType> = {
@@ -169,17 +153,9 @@ export default function Staff() {
           updates.password = staffPassword;
         }
         
-        const updatedStaff = updateStaffMember(selectedStaff.id, updates);
-        if (updatedStaff) {
-          // Update local state
-          const updatedStaffList = staff.map(s => s.id === selectedStaff.id ? updatedStaff : s);
-          setStaff(updatedStaffList);
-          
-          // Update localStorage
-          localStorage.setItem('staffList', JSON.stringify(updatedStaffList));
-          
-          toast.success('Staff member updated successfully');
-        }
+        const updatedStaff = await updateStaff(selectedStaff.id, updates);
+        setStaff(staff.map(s => s.id === selectedStaff.id ? updatedStaff : s));
+        toast.success('Staff member updated successfully');
       } else {
         // Add new staff with required password
         if (!staffPassword) {
@@ -187,7 +163,7 @@ export default function Staff() {
           return;
         }
         
-        const newStaff = addStaffMember({
+        const newStaff = await createStaff({
           name: staffName,
           email: staffEmail,
           role: staffRole,
@@ -195,13 +171,7 @@ export default function Staff() {
           password: staffPassword,
         });
         
-        // Update local state
-        const updatedStaffList = [newStaff, ...staff];
-        setStaff(updatedStaffList);
-        
-        // Update localStorage
-        localStorage.setItem('staffList', JSON.stringify(updatedStaffList));
-        
+        setStaff([newStaff, ...staff]);
         toast.success('Staff member added successfully');
       }
       
@@ -248,229 +218,193 @@ export default function Staff() {
 
         <Card className="border shadow-sm">
           <CardHeader className="p-5">
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              <span>Staff Members</span>
-            </CardTitle>
+            <CardTitle>Staff Members</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {filteredStaff.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <User className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
-                <p className="text-lg font-medium text-center">No staff members found</p>
-                <p className="text-muted-foreground text-center mt-1">
-                  {searchTerm ? "Try adjusting your search." : "Add your first staff member to get started."}
+            {isLoading ? (
+              <div className="flex justify-center items-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : filteredStaff.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center">
+                <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold">No staff members found</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {searchTerm
+                    ? "Try adjusting your search query"
+                    : "Add your first staff member to get started"}
                 </p>
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => handleOpenStaffForm()}
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add Staff Member
-                </Button>
               </div>
             ) : (
-              <div className="rounded-md border-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Joined</TableHead>
-                      <TableHead className="w-[100px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredStaff.map((staffMember) => (
-                      <TableRow key={staffMember.id} className="transition-all hover:bg-muted/50">
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${staffMember.name}`} alt={staffMember.name} />
-                              <AvatarFallback>{staffMember.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium">{staffMember.name}</div>
-                              {staffMember.phone && (
-                                <div className="text-xs text-muted-foreground">{staffMember.phone}</div>
-                              )}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff Member</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredStaff.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={`https://avatar.vercel.sh/${member.email}`} />
+                            <AvatarFallback>
+                              {member.name
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{member.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {member.role === 'admin' ? 'Administrator' : 'Staff Member'}
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell>{staffMember.email}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant="outline" 
-                            className={staffMember.role === 'admin' 
-                              ? 'bg-primary/10 text-primary border-primary/20' 
-                              : 'bg-muted'}
-                          >
-                            {staffMember.role === 'admin' ? 'Admin' : 'Staff'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(staffMember.createdAt), 'MMM dd, yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-[160px]">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleOpenStaffForm(staffMember)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => {
-                                  setSelectedStaff(staffMember);
-                                  setIsDeleteDialogOpen(true);
-                                }}
-                                disabled={staffMember.id === currentUser?.id}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
+                          {member.role === 'admin' ? 'Admin' : 'Staff'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{member.email}</TableCell>
+                      <TableCell>{member.phone || '-'}</TableCell>
+                      <TableCell>
+                        {format(new Date(member.createdAt), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => handleOpenStaffForm(member)}
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            {member.id !== currentUser?.id && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => {
+                                    setSelectedStaff(member);
+                                    setIsDeleteDialogOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
       </div>
 
       {/* Staff Form Dialog */}
-      <Dialog open={isStaffFormOpen} onOpenChange={(open) => {
-        setIsStaffFormOpen(open);
-        if (!open) resetForm();
-      }}>
-        <DialogContent className="sm:max-w-[500px]">
+      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {isEditing ? (
-                <>
-                  <UserCog className="h-5 w-5" />
-                  <span>Edit Staff Member</span>
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-5 w-5" />
-                  <span>Add New Staff Member</span>
-                </>
-              )}
+            <DialogTitle>
+              {isEditing ? 'Edit Staff Member' : 'Add New Staff Member'}
             </DialogTitle>
             <DialogDescription>
-              {isEditing 
-                ? 'Make changes to the staff member details below.' 
+              {isEditing
+                ? 'Update staff member details below.'
                 : 'Fill in the details to add a new staff member.'}
             </DialogDescription>
           </DialogHeader>
-
-          <form onSubmit={handleSubmitStaff} className="space-y-6 py-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+          <form onSubmit={handleSubmitStaff} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                value={staffName}
+                onChange={(e) => setStaffName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={staffEmail}
+                onChange={(e) => setStaffEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={staffRole}
+                onValueChange={(value: UserRole) => setStaffRole(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="staff">Staff Member</SelectItem>
+                  <SelectItem value="admin">Administrator</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone (Optional)</Label>
+              <Input
+                id="phone"
+                value={staffPhone}
+                onChange={(e) => setStaffPhone(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">
+                {isEditing ? 'New Password (Optional)' : 'Password'}
+              </Label>
+              <div className="relative">
                 <Input
-                  id="name"
-                  placeholder="Enter full name"
-                  value={staffName}
-                  onChange={(e) => setStaffName(e.target.value)}
-                  required
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={staffPassword}
+                  onChange={(e) => setStaffPassword(e.target.value)}
+                  required={!isEditing}
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="email@example.com"
-                  value={staffEmail}
-                  onChange={(e) => setStaffEmail(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">
-                  {isEditing ? "Password (leave blank to keep current)" : "Password"}
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder={isEditing ? "••••••••" : "Enter password"}
-                    value={staffPassword}
-                    onChange={(e) => setStaffPassword(e.target.value)}
-                    required={!isEditing}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3 py-2"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {isEditing 
-                    ? "Only fill this if you want to change the password." 
-                    : "This password will be used for login."}
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone (optional)</Label>
-                <Input
-                  id="phone"
-                  placeholder="+1 (555) 123-4567"
-                  value={staffPhone}
-                  onChange={(e) => setStaffPhone(e.target.value)}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  value={staffRole}
-                  onValueChange={(value) => setStaffRole(value as UserRole)}
-                  required
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="staff">Staff</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {staffRole === 'admin' 
-                    ? 'Admins have full access to all features.' 
-                    : 'Staff members have limited access to features.'}
-                </p>
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
             </div>
-
             <DialogFooter>
               <Button type="submit">
                 {isEditing ? 'Update Staff Member' : 'Add Staff Member'}
@@ -484,12 +418,12 @@ export default function Staff() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogTitle>Delete Staff Member</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the staff member "{selectedStaff?.name}"? This action cannot be undone.
+              Are you sure you want to delete this staff member? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}

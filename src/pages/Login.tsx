@@ -41,6 +41,19 @@ export default function Login() {
     }
   };
 
+  const loginAsAdmin = async () => {
+    setEmail('admin@electrical.com');
+    setPassword('admin123');
+    try {
+      const success = await login('admin@electrical.com', 'admin123');
+      if (!success) {
+        setError('Failed to login with admin credentials. Make sure the server is running.');
+      }
+    } catch (err) {
+      setError('An error occurred during login');
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
       <div className="w-full max-w-md space-y-6">
@@ -102,9 +115,16 @@ export default function Login() {
         <div className="bg-card rounded-xl p-4 border">
           <h3 className="font-medium mb-2">Demo Credentials</h3>
           <div className="space-y-1 text-sm">
-            <p><strong>Admin:</strong> admin@example.com / password</p>
-            <p><strong>Staff:</strong> staff@example.com / password</p>
+            <p><strong>Admin:</strong> admin@electrical.com / admin123</p>
             <p className="text-xs text-muted-foreground mt-2">You can also login with staff members you've created using their email and password.</p>
+            <Button 
+              variant="outline" 
+              className="w-full mt-4" 
+              onClick={loginAsAdmin}
+              disabled={isLoading}
+            >
+              Login as Admin
+            </Button>
           </div>
         </div>
       </div>
