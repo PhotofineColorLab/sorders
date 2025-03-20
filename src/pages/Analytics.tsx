@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -29,16 +29,119 @@ import {
   ArrowDownRight,
   Users,
   ShoppingCart,
+  Loader2,
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { getAnalytics, getSalesByCategory, getSalesByPeriod } from '@/lib/data';
+import { Order, Product } from '@/lib/types';
+import { fetchOrders, fetchProducts } from '@/lib/api';
+import { toast } from 'sonner';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', '#a4de6c', '#d0ed57'];
 
 export default function Analytics() {
-  const analytics = getAnalytics();
-  const salesByCategory = getSalesByCategory();
-  const salesByPeriod = getSalesByPeriod();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch data from API
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch all orders and products in parallel
+        const [ordersData, productsData] = await Promise.all([
+          fetchOrders(),
+          fetchProducts()
+        ]);
+        
+        setOrders(ordersData);
+        setProducts(productsData);
+      } catch (error) {
+        console.error('Error loading analytics data:', error);
+        toast.error('Failed to load analytics data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
+
+  // Calculate analytics from real data
+  const calculateAnalytics = () => {
+    if (!orders.length) return {
+      totalSales: 0,
+      totalOrders: 0,
+      averageOrderValue: 0,
+      pendingOrders: 0
+    };
+    
+    const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+    const totalOrders = orders.length;
+    const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+    const pendingOrders = orders.filter(order => order.status === 'pending').length;
+    
+    return {
+      totalSales,
+      totalOrders,
+      averageOrderValue,
+      pendingOrders
+    };
+  };
+
+  // Calculate sales by category
+  const calculateSalesByCategory = () => {
+    const categories: { [key: string]: number } = {};
+    
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        const product = products.find(p => p._id === item.productId || p.id === item.productId);
+        if (product) {
+          const { category } = product;
+          const amount = item.price * item.quantity;
+          categories[category] = (categories[category] || 0) + amount;
+        }
+      });
+    });
+    
+    return Object.entries(categories).map(([category, amount]) => ({
+      category,
+      amount: Number(amount.toFixed(2)),
+    })).sort((a, b) => b.amount - a.amount);
+  };
+
+  // Calculate sales by period (last 7 days)
+  const calculateSalesByPeriod = () => {
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      return date.toISOString().split('T')[0];
+    }).reverse();
+    
+    const salesByDate: { [date: string]: number } = {};
+    
+    // Initialize all dates with 0
+    last7Days.forEach(date => {
+      salesByDate[date] = 0;
+    });
+    
+    // Sum up sales for each date
+    orders.forEach(order => {
+      const orderDate = new Date(order.createdAt).toISOString().split('T')[0];
+      if (last7Days.includes(orderDate)) {
+        salesByDate[orderDate] += order.total;
+      }
+    });
+    
+    return Object.entries(salesByDate).map(([date, amount]) => ({
+      date,
+      amount: Number(amount.toFixed(2)),
+    }));
+  };
+
+  const analytics = calculateAnalytics();
+  const salesByCategory = calculateSalesByCategory();
+  const salesByPeriod = calculateSalesByPeriod();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -121,6 +224,17 @@ export default function Analytics() {
       </CardContent>
     </Card>
   );
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="h-[80vh] flex flex-col items-center justify-center">
+          <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+          <h2 className="text-xl font-medium">Loading analytics data...</h2>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
