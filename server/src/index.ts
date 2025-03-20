@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import orderRoutes from './routes/orderRoutes';
+import productRoutes from './routes/productRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/orders', orderRoutes);
+app.use('/api/products', productRoutes);
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/electra-admin';

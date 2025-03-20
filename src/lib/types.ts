@@ -26,7 +26,8 @@ export type ProductCategory =
   | 'accessories';
 
 export interface Product {
-  id: string;
+  id?: string;
+  _id?: string; // MongoDB ID
   name: string;
   description: string;
   price: number;

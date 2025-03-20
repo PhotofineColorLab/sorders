@@ -1,22 +1,76 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart4, Package, ShoppingCart, Users, TrendingUp, Clock, AlertTriangle } from 'lucide-react';
+import { BarChart4, Package, ShoppingCart, Users, TrendingUp, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { getAnalytics, getOrdersByStatus, getProducts, getSalesByPeriod } from '@/lib/data';
+import { getSalesByPeriod } from '@/lib/data';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Order, Product } from '@/lib/types';
+import { fetchOrders, fetchProducts } from '@/lib/api';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
-  const analytics = getAnalytics();
-  const pendingOrders = getOrdersByStatus('pending');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Fetch data from API
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch all orders and products in parallel
+        const [ordersData, productsData] = await Promise.all([
+          fetchOrders(),
+          fetchProducts()
+        ]);
+        
+        setOrders(ordersData);
+        setProducts(productsData);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
+  
+  // Calculate analytics from real data
+  const calculateAnalytics = () => {
+    if (!orders.length) return {
+      totalSales: 0,
+      totalOrders: 0,
+      averageOrderValue: 0,
+      pendingOrders: 0
+    };
+    
+    const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+    const totalOrders = orders.length;
+    const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+    const pendingOrders = orders.filter(order => order.status === 'pending').length;
+    
+    return {
+      totalSales,
+      totalOrders,
+      averageOrderValue,
+      pendingOrders
+    };
+  };
+  
+  const analytics = calculateAnalytics();
+  const pendingOrders = orders.filter(order => order.status === 'pending').sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
   const recentSales = getSalesByPeriod();
-  const products = getProducts();
   const productCount = products.length;
-  const lowStockProducts = products.filter(p => p.stock < 15);
+  const lowStockProducts = products.filter(p => p.stock < 15).sort((a, b) => a.stock - b.stock);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -24,6 +78,17 @@ export default function Dashboard() {
       currency: 'USD',
     }).format(value);
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="h-[80vh] flex flex-col items-center justify-center">
+          <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+          <h2 className="text-xl font-medium">Loading dashboard data...</h2>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -45,7 +110,7 @@ export default function Dashboard() {
               <CardContent>
                 <div className="text-2xl font-bold">{formatCurrency(analytics.totalSales)}</div>
                 <p className="text-xs text-muted-foreground">
-                  +{Math.floor(Math.random() * 10) + 10}% from last month
+                  From {orders.length} total orders
                 </p>
               </CardContent>
             </Card>
@@ -86,7 +151,7 @@ export default function Dashboard() {
                   {formatCurrency(analytics.averageOrderValue)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  +{Math.floor(Math.random() * 5) + 2}% from last month
+                  Calculated from {orders.length} orders
                 </p>
               </CardContent>
             </Card>
@@ -148,7 +213,7 @@ export default function Dashboard() {
                 {lowStockProducts.length > 0 ? (
                   <div className="space-y-3 max-h-[180px] overflow-y-auto pr-2">
                     {lowStockProducts.map((product) => (
-                      <div key={product.id} className="flex items-center justify-between pb-2 border-b border-muted last:border-0 last:pb-0">
+                      <div key={product._id || product.id} className="flex items-center justify-between pb-2 border-b border-muted last:border-0 last:pb-0">
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${product.stock < 5 ? 'bg-destructive' : 'bg-amber-500'}`} />
                           <span className="font-medium text-sm">{product.name}</span>
@@ -185,7 +250,7 @@ export default function Dashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {pendingOrders.slice(0, 5).map((order) => (
-                    <div key={order.id} className="flex items-start space-x-3">
+                    <div key={order._id || order.id} className="flex items-start space-x-3">
                       <Clock className="h-5 w-5 text-amber-500 mt-0.5" />
                       <div className="space-y-1">
                         <p className="text-sm font-medium">{order.customerName}</p>
