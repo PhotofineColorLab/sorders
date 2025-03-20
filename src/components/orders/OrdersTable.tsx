@@ -39,6 +39,8 @@ export function OrdersTable({
   isUpdateLoading,
   formatCurrency
 }: OrdersTableProps) {
+  const getOrderId = (order: Order) => order._id || order.id || '';
+  
   return (
     <div className="rounded-md border-0">
       <Table>
@@ -54,8 +56,8 @@ export function OrdersTable({
         </TableHeader>
         <TableBody>
           {orders.map((order) => (
-            <TableRow key={order.id} className="transition-all hover:bg-muted/50">
-              <TableCell className="font-medium">#{order.id}</TableCell>
+            <TableRow key={getOrderId(order)} className="transition-all hover:bg-muted/50">
+              <TableCell className="font-medium">#{getOrderId(order).substring(0, 8)}</TableCell>
               <TableCell>{order.customerName}</TableCell>
               <TableCell>
                 {format(new Date(order.createdAt), 'MMM dd, yyyy')}
@@ -64,7 +66,7 @@ export function OrdersTable({
               <TableCell>{formatCurrency(order.total)}</TableCell>
               <TableCell>
                 <div className="flex items-center space-x-1">
-                  <OrderViewsTooltip orderId={order.id} />
+                  <OrderViewsTooltip orderId={getOrderId(order)} />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
@@ -84,28 +86,28 @@ export function OrdersTable({
                       <DropdownMenuLabel>Change Status</DropdownMenuLabel>
                       <DropdownMenuItem
                         disabled={order.status === 'pending' || isUpdateLoading}
-                        onClick={() => onStatusChange(order.id, 'pending')}
+                        onClick={() => onStatusChange(getOrderId(order), 'pending')}
                       >
                         {isUpdateLoading && <Loader2 className="h-3 w-3 mr-2 animate-spin" />}
                         Mark as Pending
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         disabled={order.status === 'dc' || isUpdateLoading}
-                        onClick={() => onStatusChange(order.id, 'dc')}
+                        onClick={() => onStatusChange(getOrderId(order), 'dc')}
                       >
                         {isUpdateLoading && <Loader2 className="h-3 w-3 mr-2 animate-spin" />}
                         Generate DC
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         disabled={order.status === 'invoice' || isUpdateLoading}
-                        onClick={() => onStatusChange(order.id, 'invoice')}
+                        onClick={() => onStatusChange(getOrderId(order), 'invoice')}
                       >
                         {isUpdateLoading && <Loader2 className="h-3 w-3 mr-2 animate-spin" />}
                         Generate Invoice
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         disabled={order.status === 'dispatched' || isUpdateLoading}
-                        onClick={() => onStatusChange(order.id, 'dispatched')}
+                        onClick={() => onStatusChange(getOrderId(order), 'dispatched')}
                       >
                         {isUpdateLoading && <Loader2 className="h-3 w-3 mr-2 animate-spin" />}
                         Mark as Dispatched

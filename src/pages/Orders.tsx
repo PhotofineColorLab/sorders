@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,21 +8,45 @@ import { OrdersTable } from '@/components/orders/OrdersTable';
 import { EmptyOrdersState } from '@/components/orders/EmptyOrdersState';
 import { OrderViewDialog } from '@/components/orders/OrderViewDialog';
 import { DeleteOrderDialog } from '@/components/orders/DeleteOrderDialog';
-import { deleteOrder, getOrders, updateOrder } from '@/lib/data';
 import { Order, OrderStatus } from '@/lib/types';
 import OrderForm from '@/components/forms/OrderForm';
 import { PaginationWrapper } from '@/components/ui/pagination-wrapper';
+import { fetchOrders, deleteOrderAPI, updateOrderAPI } from '@/lib/api';
 
 export default function Orders() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('all');
-  const [orders, setOrders] = useState(getOrders());
+  const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  useEffect(() => {
+    loadOrders();
+  }, [activeTab]);
+
+  const loadOrders = async () => {
+    setIsLoading(true);
+    try {
+      console.log("Loading orders with status:", activeTab);
+      const fetchedOrders = await fetchOrders(activeTab === 'all' ? undefined : activeTab);
+      setOrders(fetchedOrders);
+      toast.success("Orders loaded successfully");
+    } catch (error) {
+      console.error("Error loading orders:", error);
+      toast.error("Failed to load orders");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -35,24 +59,19 @@ export default function Orders() {
     setIsUpdateLoading(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
       // Set dispatchDate if status is changing to dispatched
       const updates: any = { status };
       if (status === 'dispatched') {
         updates.dispatchDate = new Date();
       }
       
-      const updatedOrder = updateOrder(orderId, updates);
+      const updatedOrder = await updateOrderAPI(orderId, updates);
       
-      if (updatedOrder) {
-        setOrders(
-          orders.map(order => (order.id === orderId ? updatedOrder : order))
-        );
-        
-        toast.success(`Order status updated to ${status}`);
-      }
+      setOrders(
+        orders.map(order => (order._id === orderId ? updatedOrder : order))
+      );
+      
+      toast.success(`Order status updated to ${status}`);
     } catch (error) {
       console.error(error);
       toast.error('Failed to update order status');
@@ -63,11 +82,8 @@ export default function Orders() {
 
   const handleDeleteOrder = async (orderId: string) => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      deleteOrder(orderId);
-      setOrders(orders.filter(order => order.id !== orderId));
+      await deleteOrderAPI(orderId);
+      setOrders(orders.filter(order => order._id !== orderId));
       setIsDeleteDialogOpen(false);
       toast.success('Order deleted successfully');
     } catch (error) {
@@ -77,17 +93,25 @@ export default function Orders() {
   };
 
   const filteredOrders = orders.filter(order => {
+    // Only apply search filter if we're not filtering by status from the API
+    if (searchTerm === '') {
+      return true;
+    }
+    
     const matchesSearch =
       order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase());
+      (order._id && order._id.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    return activeTab === 'all' ? matchesSearch : order.status === activeTab && matchesSearch;
+    return matchesSearch;
   });
 
   if (isCreateMode) {
     return (
       <DashboardLayout>
-        <OrderForm />
+        <OrderForm onSuccess={() => {
+          setIsCreateMode(false);
+          loadOrders();
+        }} />
       </DashboardLayout>
     );
   }
@@ -107,10 +131,7 @@ export default function Orders() {
           setSearchTerm={setSearchTerm}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          onRefresh={() => {
-            setOrders(getOrders());
-            toast.success('Orders refreshed');
-          }}
+          onRefresh={loadOrders}
           onCreateOrder={() => setIsCreateMode(true)}
         />
 
@@ -119,7 +140,11 @@ export default function Orders() {
             <CardTitle>Orders</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {filteredOrders.length === 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center items-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : filteredOrders.length === 0 ? (
               <EmptyOrdersState searchTerm={searchTerm} />
             ) : (
               <PaginationWrapper

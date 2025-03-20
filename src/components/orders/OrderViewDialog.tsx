@@ -44,14 +44,14 @@ export function OrderViewDialog({
 }: OrderViewDialogProps) {
   if (!order) return null;
 
+  const getOrderId = (order: Order) => order._id || order.id || '';
+
   const getPaymentConditionText = (condition?: string) => {
     switch (condition) {
-      case 'immediate':
-        return 'Immediate';
-      case '15days':
-        return '> 15 Days';
-      case '30days':
-        return '> 30 Days';
+      case 'cash':
+        return 'Cash (Immediate)';
+      case 'credit':
+        return 'Credit (30 days)';
       default:
         return 'Not specified';
     }
@@ -71,7 +71,7 @@ export function OrderViewDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium">Order ID</p>
-              <p className="text-sm text-muted-foreground">#{order.id}</p>
+              <p className="text-sm text-muted-foreground">#{getOrderId(order).substring(0, 8)}</p>
             </div>
             <div>
               <p className="text-sm font-medium">Date</p>
@@ -128,8 +128,8 @@ export function OrderViewDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {order.items.map((item) => (
-                    <TableRow key={item.id}>
+                  {order.items.map((item, index) => (
+                    <TableRow key={item._id || item.id || index}>
                       <TableCell>{item.productName}</TableCell>
                       <TableCell className="text-right">{item.quantity}</TableCell>
                       <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
@@ -160,7 +160,7 @@ export function OrderViewDialog({
           <Select
             defaultValue={order.status}
             onValueChange={(value) => {
-              onStatusChange(order.id, value as OrderStatus);
+              onStatusChange(getOrderId(order), value as OrderStatus);
             }}
           >
             <SelectTrigger className="w-[180px]">

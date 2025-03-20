@@ -37,7 +37,8 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 import { OrderStatus, PaymentCondition, Product, OrderItem } from '@/lib/types';
-import { addOrder, getProducts, updateProduct } from '@/lib/data';
+import { getProducts, updateProduct } from '@/lib/data';
+import { createOrder } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Cloudinary upload function
@@ -61,13 +62,17 @@ const orderFormSchema = z.object({
   customerPhone: z.string().min(10, { message: 'Phone number is required' }),
   customerEmail: z.string().email().optional().or(z.literal('')),
   status: z.enum(['pending', 'dc', 'invoice', 'dispatched']),
-  paymentCondition: z.enum(['immediate', '15days', '30days']),
+  paymentCondition: z.enum(['cash', 'credit']),  // Updated to match backend
   notes: z.string().optional(),
 });
 
 type OrderFormValues = z.infer<typeof orderFormSchema>;
 
-export default function OrderForm() {
+interface OrderFormProps {
+  onSuccess?: () => void;
+}
+
+export default function OrderForm({ onSuccess }: OrderFormProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -89,7 +94,7 @@ export default function OrderForm() {
       customerPhone: '',
       customerEmail: '',
       status: 'pending',
-      paymentCondition: 'immediate',
+      paymentCondition: 'cash', // Updated from 'immediate' to 'cash'
       notes: '',
     },
   });
@@ -127,7 +132,6 @@ export default function OrderForm() {
     } else {
       // Add new item
       const newItem: OrderItem = {
-        id: `item_${Date.now()}`,
         productId: product.id,
         productName: product.name,
         quantity: quantity,
@@ -172,20 +176,44 @@ export default function OrderForm() {
       // Set dispatchDate if status is dispatched
       const dispatchDate = values.status === 'dispatched' ? new Date() : undefined;
       
-      // Create the order with required fields
-      const newOrder = addOrder({
+      // Clean up order items to match backend expectations
+      const sanitizedItems = orderItems.map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        price: item.price
+      }));
+      
+      console.log('Original order items:', orderItems);
+      console.log('Sanitized order items:', sanitizedItems);
+      
+      // Create the order object for submission
+      const orderData: any = {
         customerName: values.customerName,
         customerPhone: values.customerPhone,
-        customerEmail: values.customerEmail,
+        customerEmail: values.customerEmail || '',
         status: values.status,
         paymentCondition: values.paymentCondition,
-        dispatchDate,
-        notes: values.notes,
-        items: orderItems,
+        notes: values.notes || '',
+        items: sanitizedItems,
         total: calculateTotal(),
-        createdBy: user?.id || '',
-        orderImage: orderImageUrl,
-      });
+        createdBy: user?.id || '1', // Default to '1' if no user ID is available
+      };
+
+      // Only add dispatchDate if it exists
+      if (dispatchDate) {
+        orderData.dispatchDate = dispatchDate;
+      }
+      
+      // Add orderImage only if it exists
+      if (orderImageUrl) {
+        orderData.orderImage = orderImageUrl;
+      }
+
+      console.log('Submitting order data:', JSON.stringify(orderData, null, 2));
+      
+      // Create the order
+      await createOrder(orderData);
       
       // Update product stock levels
       orderItems.forEach(item => {
@@ -196,10 +224,15 @@ export default function OrderForm() {
       });
       
       toast.success('Order created successfully');
-      navigate('/orders');
-    } catch (error) {
+      
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/orders');
+      }
+    } catch (error: any) {
       console.error('Error creating order:', error);
-      toast.error('Failed to create order');
+      toast.error(error.message || 'Failed to create order');
     } finally {
       setIsLoading(false);
     }
@@ -300,6 +333,7 @@ export default function OrderForm() {
                   )}
                 />
                 
+                {/* Payment Condition */}
                 <FormField
                   control={form.control}
                   name="paymentCondition"
@@ -314,27 +348,15 @@ export default function OrderForm() {
                         >
                           <FormItem className="flex items-center space-x-3 space-y-0">
                             <FormControl>
-                              <RadioGroupItem value="immediate" />
+                              <RadioGroupItem value="cash" />
                             </FormControl>
-                            <FormLabel className="font-normal">
-                              Immediate
-                            </FormLabel>
+                            <FormLabel className="font-normal">Cash (Immediate)</FormLabel>
                           </FormItem>
                           <FormItem className="flex items-center space-x-3 space-y-0">
                             <FormControl>
-                              <RadioGroupItem value="15days" />
+                              <RadioGroupItem value="credit" />
                             </FormControl>
-                            <FormLabel className="font-normal">
-                              &gt; 15 Days
-                            </FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="30days" />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              &gt; 30 Days
-                            </FormLabel>
+                            <FormLabel className="font-normal">Credit (30 days)</FormLabel>
                           </FormItem>
                         </RadioGroup>
                       </FormControl>

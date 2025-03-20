@@ -1,6 +1,4 @@
 import React from 'react';
-import { File, Package, Truck, DollarSign } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Order, OrderStatus } from '@/lib/types';
 
 interface OrderStatusBadgeProps {
@@ -8,70 +6,43 @@ interface OrderStatusBadgeProps {
 }
 
 export function OrderStatusBadge({ order }: OrderStatusBadgeProps) {
-  const { status, paymentCondition, dispatchDate } = order;
-  
-  // Check if payment pending badge should be displayed
-  const shouldShowPaymentPending = () => {
-    if (status !== 'dispatched' || !dispatchDate) return false;
-    
-    const now = new Date();
-    
-    switch (paymentCondition) {
-      case 'immediate':
-        return true;
-      case '15days':
-        // Check if 15 days have passed since dispatch
-        const fifteenDaysLater = new Date(dispatchDate);
-        fifteenDaysLater.setDate(fifteenDaysLater.getDate() + 15);
-        return now >= fifteenDaysLater;
-      case '30days':
-        // Check if 30 days have passed since dispatch
-        const thirtyDaysLater = new Date(dispatchDate);
-        thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
-        return now >= thirtyDaysLater;
-      default:
-        return false;
-    }
-  };
-  
-  const renderStatusBadge = () => {
+  const getStatusColor = (status: OrderStatus) => {
     switch (status) {
       case 'pending':
-        return (
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-            <span className="mr-1">●</span> Pending
-          </Badge>
-        );
+        return 'bg-yellow-100 text-yellow-800';
       case 'dc':
-        return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-            <Package className="h-3 w-3 mr-1" /> DC Generated
-          </Badge>
-        );
+        return 'bg-blue-100 text-blue-800';
       case 'invoice':
-        return (
-          <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-            <File className="h-3 w-3 mr-1" /> Invoice Generated
-          </Badge>
-        );
+        return 'bg-purple-100 text-purple-800';
       case 'dispatched':
-        return (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            <Truck className="h-3 w-3 mr-1" /> Dispatched
-          </Badge>
-        );
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
-  
+
+  const getStatusText = (status: OrderStatus) => {
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'dc':
+        return 'DC Generated';
+      case 'invoice':
+        return 'Invoice Generated';
+      case 'dispatched':
+        return 'Dispatched';
+      default:
+        return status;
+    }
+  };
+
   return (
-    <div className="flex gap-2 flex-wrap">
-      {renderStatusBadge()}
-      
-      {shouldShowPaymentPending() && (
-        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-          <DollarSign className="h-3 w-3 mr-1" /> Payment Pending
-        </Badge>
-      )}
-    </div>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+        order.status
+      )}`}
+    >
+      {getStatusText(order.status)}
+    </span>
   );
 }

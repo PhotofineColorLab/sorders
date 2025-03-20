@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Dialog,
@@ -22,27 +21,31 @@ export function DeleteOrderDialog({
   isOpen,
   onOpenChange,
   order,
-  onDelete
+  onDelete,
 }: DeleteOrderDialogProps) {
+  if (!order) return null;
+
+  const getOrderId = (order: Order) => order._id || order.id || '';
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Confirm Deletion</DialogTitle>
+          <DialogTitle>Delete Order</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this order? This action cannot be undone.
+            Are you sure you want to delete order #{getOrderId(order).substring(0, 8)}? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             variant="destructive"
-            onClick={() => order && onDelete(order.id)}
+            onClick={() => {
+              onDelete(getOrderId(order));
+              onOpenChange(false);
+            }}
           >
             Delete
           </Button>

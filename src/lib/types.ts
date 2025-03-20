@@ -39,10 +39,11 @@ export interface Product {
 
 // Order Types
 export type OrderStatus = 'pending' | 'dc' | 'invoice' | 'dispatched';
-export type PaymentCondition = 'immediate' | '15days' | '30days';
+export type PaymentCondition = 'cash' | 'credit';
 
 export interface OrderItem {
-  id: string;
+  id?: string;
+  _id?: string; // MongoDB ID
   productId: string;
   productName: string;
   quantity: number;
@@ -50,7 +51,8 @@ export interface OrderItem {
 }
 
 export interface Order {
-  id: string;
+  id?: string;
+  _id?: string; // MongoDB ID
   customerId?: string;
   customerName: string;
   customerEmail?: string;
