@@ -51,7 +51,7 @@ export function OrdersTable({
           <TableRow>
             <TableHead>Order ID</TableHead>
             <TableHead>Customer</TableHead>
-            <TableHead>Date</TableHead>
+            <TableHead>Created</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Total</TableHead>
             <TableHead className="w-[120px]">Actions</TableHead>

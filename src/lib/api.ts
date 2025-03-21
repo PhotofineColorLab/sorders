@@ -212,6 +212,28 @@ export const fetchOrders = async (status?: string) => {
   return response.json();
 };
 
+export const fetchOrdersByDateRange = async (startDate: Date, endDate: Date) => {
+  const token = localStorage.getItem('token');
+  
+  // Format dates as ISO strings for the URL
+  const start = startDate.toISOString().split('T')[0];
+  const end = endDate.toISOString().split('T')[0];
+  
+  const url = `${API_URL}/orders/date-range/${start}/${end}`;
+  
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch orders by date range');
+  }
+
+  return response.json();
+};
+
 export const createOrder = async (formData: FormData) => {
   const token = localStorage.getItem('token');
   

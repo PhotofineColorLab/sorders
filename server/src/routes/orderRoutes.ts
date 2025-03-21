@@ -7,6 +7,7 @@ import {
   deleteOrder,
   getOrdersByStatus,
   markOrderAsPaid,
+  getOrdersByDateRange,
 } from '../controllers/orderController';
 import { upload } from '../config/cloudinary';
 
@@ -30,6 +31,9 @@ router.get('/', getOrders as RequestHandler);
 
 // Get orders by status - must be before /:id route to avoid conflict
 router.get('/status/:status', getOrdersByStatus as RequestHandler);
+
+// Get orders by date range
+router.get('/date-range/:startDate/:endDate', getOrdersByDateRange as RequestHandler);
 
 // Get order by ID
 router.get('/:id', getOrder as RequestHandler);

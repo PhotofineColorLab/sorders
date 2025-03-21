@@ -145,4 +145,33 @@ export const markOrderAsPaid = async (req: Request, res: Response): Promise<void
   } catch (error) {
     res.status(500).json({ message: 'Error marking order as paid', error });
   }
+};
+
+// Get orders by date range
+export const getOrdersByDateRange = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { startDate, endDate } = req.params;
+    
+    if (!startDate || !endDate) {
+      res.status(400).json({ message: 'Start date and end date are required' });
+      return;
+    }
+    
+    // Create date objects
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999); // Include all orders on the end date
+    
+    // Query for orders where createdAt is within the range
+    const orders = await Order.find({
+      createdAt: { 
+        $gte: start, 
+        $lte: end 
+      }
+    }).sort({ createdAt: -1 });
+    
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching orders by date range', error });
+  }
 }; 

@@ -12,12 +12,14 @@ import { MarkPaidDialog } from '@/components/orders/MarkPaidDialog';
 import { Order, OrderStatus } from '@/lib/types';
 import OrderForm from '@/components/forms/OrderForm';
 import { PaginationWrapper } from '@/components/ui/pagination-wrapper';
-import { fetchOrders, deleteOrder, updateOrder, markOrderAsPaid } from '@/lib/api';
+import { fetchOrders, fetchOrdersByDateRange, deleteOrder, updateOrder, markOrderAsPaid } from '@/lib/api';
+import { isAfter, isBefore, isEqual, startOfDay } from 'date-fns';
 
 export default function Orders() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('all');
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
@@ -34,12 +36,28 @@ export default function Orders() {
   useEffect(() => {
     loadOrders();
   }, [activeTab]);
+  
+  // Reload orders when date range changes (but only if both from and to are set)
+  useEffect(() => {
+    if (dateRange.from && dateRange.to) {
+      loadOrders();
+    }
+  }, [dateRange.from, dateRange.to]);
 
   const loadOrders = async () => {
     setIsLoading(true);
     try {
       console.log("Loading orders with status:", activeTab);
-      const fetchedOrders = await fetchOrders(activeTab === 'all' ? undefined : activeTab);
+      
+      let fetchedOrders;
+      
+      // If date range is selected, use that API instead of status filter
+      if (dateRange.from && dateRange.to) {
+        fetchedOrders = await fetchOrdersByDateRange(dateRange.from, dateRange.to);
+      } else {
+        fetchedOrders = await fetchOrders(activeTab === 'all' ? undefined : activeTab);
+      }
+      
       setOrders(fetchedOrders);
       toast.success("Orders loaded successfully");
     } catch (error) {
@@ -55,6 +73,20 @@ export default function Orders() {
       style: 'currency',
       currency: 'USD',
     }).format(value);
+  };
+
+  // Date filter helper function
+  const isWithinDateRange = (date: Date, from?: Date, to?: Date): boolean => {
+    if (!from) return true;
+    
+    const orderDate = startOfDay(new Date(date));
+    const fromDate = startOfDay(new Date(from));
+    const toDate = to ? startOfDay(new Date(to)) : fromDate;
+    
+    return (
+      (isAfter(orderDate, fromDate) || isEqual(orderDate, fromDate)) &&
+      (isBefore(orderDate, toDate) || isEqual(orderDate, toDate))
+    );
   };
 
   const handleStatusChange = async (orderId: string, status: OrderStatus) => {
@@ -114,16 +146,18 @@ export default function Orders() {
   };
 
   const filteredOrders = orders.filter(order => {
-    // Only apply search filter if we're not filtering by status from the API
-    if (searchTerm === '') {
-      return true;
-    }
+    // First filter by search term
+    const matchesSearch = searchTerm === '' 
+      ? true 
+      : order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (order._id && order._id.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesSearch =
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order._id && order._id.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    return matchesSearch;
+    // Then filter by date range - checking only createdAt
+    const matchesDateRange = dateRange.from 
+      ? isWithinDateRange(new Date(order.createdAt), dateRange.from, dateRange.to)
+      : true;
+      
+    return matchesSearch && matchesDateRange;
   });
 
   if (isCreateMode) {
@@ -152,6 +186,8 @@ export default function Orders() {
           setSearchTerm={setSearchTerm}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
+          dateRange={dateRange}
+          setDateRange={setDateRange}
           onRefresh={loadOrders}
           onCreateOrder={() => setIsCreateMode(true)}
         />
