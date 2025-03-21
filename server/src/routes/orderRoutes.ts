@@ -6,6 +6,7 @@ import {
   updateOrder,
   deleteOrder,
   getOrdersByStatus,
+  markOrderAsPaid,
 } from '../controllers/orderController';
 import { upload } from '../config/cloudinary';
 
@@ -38,6 +39,9 @@ router.post('/', upload.single('orderImage'), parseOrderData, createOrder as Req
 
 // Update order with file upload
 router.put('/:id', upload.single('orderImage'), parseOrderData, updateOrder as RequestHandler);
+
+// Mark order as paid
+router.put('/:id/paid', markOrderAsPaid as RequestHandler);
 
 // Delete order
 router.delete('/:id', deleteOrder as RequestHandler);

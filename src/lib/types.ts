@@ -40,7 +40,7 @@ export interface Product {
 
 // Order Types
 export type OrderStatus = 'pending' | 'dc' | 'invoice' | 'dispatched';
-export type PaymentCondition = 'cash' | 'credit';
+export type PaymentCondition = 'immediate' | 'days15' | 'days30';
 
 export interface OrderItem {
   id?: string;
@@ -68,6 +68,8 @@ export interface Order {
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;
+  isPaid?: boolean;
+  paidAt?: Date;
 }
 
 // Analytics Types

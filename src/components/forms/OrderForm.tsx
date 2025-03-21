@@ -47,7 +47,7 @@ const orderFormSchema = z.object({
   customerPhone: z.string().min(10, { message: 'Phone number is required' }),
   customerEmail: z.string().email().optional().or(z.literal('')),
   status: z.enum(['pending', 'dc', 'invoice', 'dispatched']),
-  paymentCondition: z.enum(['cash', 'credit']),  // Updated to match backend
+  paymentCondition: z.enum(['immediate', 'days15', 'days30']),
   notes: z.string().optional(),
 });
 
@@ -79,7 +79,7 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
       customerPhone: '',
       customerEmail: '',
       status: 'pending',
-      paymentCondition: 'cash', // Updated from 'immediate' to 'cash'
+      paymentCondition: 'immediate',
       notes: '',
     },
   });
@@ -161,7 +161,7 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
         price: item.price
       }));
       
-      // Create the order data
+      // Create the base order data
       const orderData = {
         customerName: values.customerName,
         customerPhone: values.customerPhone,
@@ -174,16 +174,16 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
         createdBy: user?.id || '1', // Default to '1' if no user ID is available
       };
 
-      // Only add dispatchDate if it exists
-      if (dispatchDate) {
-        orderData.dispatchDate = dispatchDate;
-      }
+      // Create a new object with the dispatchDate if needed
+      const finalOrderData = dispatchDate 
+        ? { ...orderData, dispatchDate } 
+        : orderData;
       
       // Create form data
       const formData = new FormData();
       
       // Add order data
-      formData.append('orderData', JSON.stringify(orderData));
+      formData.append('orderData', JSON.stringify(finalOrderData));
       
       // Add image if exists
       if (orderImage) {
@@ -327,15 +327,21 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
                         >
                           <FormItem className="flex items-center space-x-3 space-y-0">
                             <FormControl>
-                              <RadioGroupItem value="cash" />
+                              <RadioGroupItem value="immediate" />
                             </FormControl>
-                            <FormLabel className="font-normal">Cash (Immediate)</FormLabel>
+                            <FormLabel className="font-normal">Immediate</FormLabel>
                           </FormItem>
                           <FormItem className="flex items-center space-x-3 space-y-0">
                             <FormControl>
-                              <RadioGroupItem value="credit" />
+                              <RadioGroupItem value="days15" />
                             </FormControl>
-                            <FormLabel className="font-normal">Credit (30 days)</FormLabel>
+                            <FormLabel className="font-normal">&gt;15 Days</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="days30" />
+                            </FormControl>
+                            <FormLabel className="font-normal">&gt;30 Days</FormLabel>
                           </FormItem>
                         </RadioGroup>
                       </FormControl>

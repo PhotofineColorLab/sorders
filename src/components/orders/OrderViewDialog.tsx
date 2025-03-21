@@ -26,12 +26,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Order, OrderStatus } from '@/lib/types';
 import { OrderStatusBadge } from './OrderStatusBadge';
+import { PaymentStatusBadge } from './PaymentStatusBadge';
 
 interface OrderViewDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   order: Order | null;
   onStatusChange: (orderId: string, status: OrderStatus) => void;
+  onMarkPaid?: (orderId: string) => void;
   formatCurrency: (value: number) => string;
 }
 
@@ -40,6 +42,7 @@ export function OrderViewDialog({
   onOpenChange,
   order,
   onStatusChange,
+  onMarkPaid,
   formatCurrency
 }: OrderViewDialogProps) {
   if (!order) return null;
@@ -48,10 +51,12 @@ export function OrderViewDialog({
 
   const getPaymentConditionText = (condition?: string) => {
     switch (condition) {
-      case 'cash':
-        return 'Cash (Immediate)';
-      case 'credit':
-        return 'Credit (30 days)';
+      case 'immediate':
+        return 'Immediate';
+      case 'days15':
+        return '>15 Days';
+      case 'days30':
+        return '>30 Days';
       default:
         return 'Not specified';
     }
@@ -101,7 +106,16 @@ export function OrderViewDialog({
             </div>
             <div>
               <p className="text-sm font-medium">Status</p>
-              <p className="text-sm mt-1"><OrderStatusBadge order={order} /></p>
+              <p className="text-sm mt-1 flex items-center">
+                <OrderStatusBadge order={order} />
+                <PaymentStatusBadge 
+                  order={order} 
+                  onClick={onMarkPaid && !order.isPaid ? () => {
+                    onMarkPaid(getOrderId(order));
+                    onOpenChange(false);
+                  } : undefined}
+                />
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium">Payment Condition</p>
@@ -109,6 +123,14 @@ export function OrderViewDialog({
                 {getPaymentConditionText(order.paymentCondition)}
               </p>
             </div>
+            {order.paidAt && (
+              <div>
+                <p className="text-sm font-medium">Payment Date</p>
+                <p className="text-sm text-muted-foreground">
+                  {format(new Date(order.paidAt), 'MMM dd, yyyy')}
+                </p>
+              </div>
+            )}
             {order.dispatchDate && (
               <div>
                 <p className="text-sm font-medium">Dispatch Date</p>
@@ -173,23 +195,34 @@ export function OrderViewDialog({
         </div>
 
         <DialogFooter className="flex items-center justify-between">
-          <Select
-            defaultValue={order.status}
-            onValueChange={(value) => {
-              onStatusChange(getOrderId(order), value as OrderStatus);
-            }}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Change status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="dc">DC Generated</SelectItem>
-              <SelectItem value="invoice">Invoice Generated</SelectItem>
-              <SelectItem value="dispatched">Dispatched</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
+          <div className="flex space-x-2">
+            <Select
+              defaultValue={order.status}
+              onValueChange={(value) => {
+                onStatusChange(getOrderId(order), value as OrderStatus);
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Change status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="dc">DC Generated</SelectItem>
+                <SelectItem value="invoice">Invoice Generated</SelectItem>
+                <SelectItem value="dispatched">Dispatched</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {order.status === 'dispatched' && !order.isPaid && onMarkPaid && (
+              <Button onClick={() => {
+                onMarkPaid(getOrderId(order));
+                onOpenChange(false);
+              }}>
+                Mark as Paid
+              </Button>
+            )}
+          </div>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

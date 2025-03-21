@@ -251,6 +251,28 @@ export const updateOrder = async (id: string, orderData: Partial<Order>) => {
   return response.json();
 };
 
+export const markOrderAsPaid = async (id: string) => {
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_URL}/orders/${id}/paid`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ 
+      isPaid: true, 
+      paidAt: new Date() 
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to mark order as paid');
+  }
+
+  return response.json();
+};
+
 export const deleteOrder = async (id: string) => {
   const token = localStorage.getItem('token');
   const response = await fetch(`${API_URL}/orders/${id}`, {

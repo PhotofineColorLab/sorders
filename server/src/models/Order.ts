@@ -18,9 +18,11 @@ export interface IOrder extends Document {
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;
-  paymentCondition?: 'cash' | 'credit';
+  paymentCondition: 'immediate' | 'days15' | 'days30';
   dispatchDate?: Date;
   orderImage?: string;
+  isPaid: boolean;
+  paidAt?: Date;
 }
 
 const OrderItemSchema = new Schema({
@@ -48,11 +50,13 @@ const OrderSchema = new Schema({
   createdBy: { type: String, required: true },
   paymentCondition: { 
     type: String, 
-    enum: ['cash', 'credit'],
-    default: 'cash'
+    enum: ['immediate', 'days15', 'days30'],
+    default: 'immediate'
   },
   dispatchDate: { type: Date },
-  orderImage: { type: String }
+  orderImage: { type: String },
+  isPaid: { type: Boolean, default: false },
+  paidAt: { type: Date }
 });
 
 // Update the updatedAt timestamp before saving

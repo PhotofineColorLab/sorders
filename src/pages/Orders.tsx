@@ -8,10 +8,11 @@ import { OrdersTable } from '@/components/orders/OrdersTable';
 import { EmptyOrdersState } from '@/components/orders/EmptyOrdersState';
 import { OrderViewDialog } from '@/components/orders/OrderViewDialog';
 import { DeleteOrderDialog } from '@/components/orders/DeleteOrderDialog';
+import { MarkPaidDialog } from '@/components/orders/MarkPaidDialog';
 import { Order, OrderStatus } from '@/lib/types';
 import OrderForm from '@/components/forms/OrderForm';
 import { PaginationWrapper } from '@/components/ui/pagination-wrapper';
-import { fetchOrders, deleteOrder, updateOrder } from '@/lib/api';
+import { fetchOrders, deleteOrder, updateOrder, markOrderAsPaid } from '@/lib/api';
 
 export default function Orders() {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ export default function Orders() {
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isMarkPaidDialogOpen, setIsMarkPaidDialogOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -75,6 +77,25 @@ export default function Orders() {
     } catch (error) {
       console.error(error);
       toast.error('Failed to update order status');
+    } finally {
+      setIsUpdateLoading(false);
+    }
+  };
+
+  const handleMarkPaid = async (orderId: string) => {
+    setIsUpdateLoading(true);
+    
+    try {
+      const updatedOrder = await markOrderAsPaid(orderId);
+      
+      setOrders(
+        orders.map(order => (order._id === orderId ? updatedOrder : order))
+      );
+      
+      toast.success('Order marked as paid');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to mark order as paid');
     } finally {
       setIsUpdateLoading(false);
     }
@@ -162,6 +183,10 @@ export default function Orders() {
                       setSelectedOrder(order);
                       setIsDeleteDialogOpen(true);
                     }}
+                    onMarkPaid={(order) => {
+                      setSelectedOrder(order);
+                      setIsMarkPaidDialogOpen(true);
+                    }}
                     onStatusChange={handleStatusChange}
                     isUpdateLoading={isUpdateLoading}
                     formatCurrency={formatCurrency}
@@ -178,6 +203,7 @@ export default function Orders() {
         onOpenChange={setIsViewDialogOpen}
         order={selectedOrder}
         onStatusChange={handleStatusChange}
+        onMarkPaid={handleMarkPaid}
         formatCurrency={formatCurrency}
       />
 
@@ -186,6 +212,13 @@ export default function Orders() {
         onOpenChange={setIsDeleteDialogOpen}
         order={selectedOrder}
         onDelete={handleDeleteOrder}
+      />
+
+      <MarkPaidDialog
+        isOpen={isMarkPaidDialogOpen}
+        onOpenChange={setIsMarkPaidDialogOpen}
+        order={selectedOrder}
+        onMarkPaid={handleMarkPaid}
       />
     </DashboardLayout>
   );

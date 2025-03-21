@@ -122,4 +122,27 @@ export const getOrdersByStatus = async (req: Request, res: Response): Promise<vo
   } catch (error) {
     res.status(500).json({ message: 'Error fetching orders by status', error });
   }
+};
+
+// Mark order as paid
+export const markOrderAsPaid = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { 
+        isPaid: true,
+        paidAt: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!order) {
+      res.status(404).json({ message: 'Order not found' });
+      return;
+    }
+    
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking order as paid', error });
+  }
 }; 

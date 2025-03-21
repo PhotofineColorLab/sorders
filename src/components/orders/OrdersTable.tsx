@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { OrderStatusBadge } from './OrderStatusBadge';
+import { PaymentStatusBadge } from './PaymentStatusBadge';
 import { OrderViewsTooltip } from './OrderViewsTooltip';
 import { Order, OrderStatus } from '@/lib/types';
 
@@ -26,6 +27,7 @@ interface OrdersTableProps {
   orders: Order[];
   onViewOrder: (order: Order) => void;
   onDeleteOrder: (order: Order) => void;
+  onMarkPaid: (order: Order) => void;
   onStatusChange: (orderId: string, status: OrderStatus) => void;
   isUpdateLoading: boolean;
   formatCurrency: (value: number) => string;
@@ -35,6 +37,7 @@ export function OrdersTable({
   orders,
   onViewOrder,
   onDeleteOrder,
+  onMarkPaid,
   onStatusChange,
   isUpdateLoading,
   formatCurrency
@@ -62,7 +65,15 @@ export function OrdersTable({
               <TableCell>
                 {format(new Date(order.createdAt), 'MMM dd, yyyy')}
               </TableCell>
-              <TableCell><OrderStatusBadge order={order} /></TableCell>
+              <TableCell>
+                <div className="flex items-center">
+                  <OrderStatusBadge order={order} />
+                  <PaymentStatusBadge 
+                    order={order} 
+                    onClick={order.isPaid ? undefined : () => onMarkPaid(order)}
+                  />
+                </div>
+              </TableCell>
               <TableCell>{formatCurrency(order.total)}</TableCell>
               <TableCell>
                 <div className="flex items-center space-x-1">
@@ -82,6 +93,15 @@ export function OrdersTable({
                       >
                         View details
                       </DropdownMenuItem>
+                      
+                      {order.status === 'dispatched' && !order.isPaid && (
+                        <DropdownMenuItem 
+                          onClick={() => onMarkPaid(order)}
+                        >
+                          Mark as Paid
+                        </DropdownMenuItem>
+                      )}
+
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel>Change Status</DropdownMenuLabel>
                       <DropdownMenuItem
