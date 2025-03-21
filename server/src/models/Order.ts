@@ -18,8 +18,10 @@ export interface IOrder extends Document {
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;
+  assignedTo?: string;
   paymentCondition: 'immediate' | 'days15' | 'days30';
   dispatchDate?: Date;
+  scheduledDate?: Date;
   orderImage?: string;
   isPaid: boolean;
   paidAt?: Date;
@@ -48,12 +50,14 @@ const OrderSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   createdBy: { type: String, required: true },
+  assignedTo: { type: String, default: null },
   paymentCondition: { 
     type: String, 
     enum: ['immediate', 'days15', 'days30'],
     default: 'immediate'
   },
   dispatchDate: { type: Date },
+  scheduledDate: { type: Date },
   orderImage: { type: String },
   isPaid: { type: Boolean, default: false },
   paidAt: { type: Date }

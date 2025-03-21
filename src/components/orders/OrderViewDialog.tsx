@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Order, OrderStatus } from '@/lib/types';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { PaymentStatusBadge } from './PaymentStatusBadge';
+import { fetchStaff } from '@/lib/api';
 
 interface OrderViewDialogProps {
   isOpen: boolean;
@@ -45,6 +46,23 @@ export function OrderViewDialog({
   onMarkPaid,
   formatCurrency
 }: OrderViewDialogProps) {
+  const [staffMembers, setStaffMembers] = useState<any[]>([]);
+  
+  useEffect(() => {
+    const loadStaffMembers = async () => {
+      try {
+        const staff = await fetchStaff();
+        setStaffMembers(staff);
+      } catch (error) {
+        console.error("Error loading staff members:", error);
+      }
+    };
+    
+    if (isOpen) {
+      loadStaffMembers();
+    }
+  }, [isOpen]);
+
   if (!order) return null;
 
   const getOrderId = (order: Order) => order._id || order.id || '';
@@ -60,6 +78,14 @@ export function OrderViewDialog({
       default:
         return 'Not specified';
     }
+  };
+  
+  // Get assigned staff name
+  const getAssignedStaffName = () => {
+    if (!order.assignedTo) return 'All Staff';
+    
+    const assignedStaff = staffMembers.find(staff => staff._id === order.assignedTo || staff.id === order.assignedTo);
+    return assignedStaff ? assignedStaff.name : 'Unknown Staff';
   };
 
   return (
@@ -121,6 +147,12 @@ export function OrderViewDialog({
               <p className="text-sm font-medium">Payment Condition</p>
               <p className="text-sm text-muted-foreground">
                 {getPaymentConditionText(order.paymentCondition)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Assigned To</p>
+              <p className="text-sm text-muted-foreground">
+                {getAssignedStaffName()}
               </p>
             </div>
             {order.paidAt && (

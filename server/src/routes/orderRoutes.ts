@@ -8,6 +8,7 @@ import {
   getOrdersByStatus,
   markOrderAsPaid,
   getOrdersByDateRange,
+  getOrdersByAssignedTo,
 } from '../controllers/orderController';
 import { upload } from '../config/cloudinary';
 
@@ -34,6 +35,9 @@ router.get('/status/:status', getOrdersByStatus as RequestHandler);
 
 // Get orders by date range
 router.get('/date-range/:startDate/:endDate', getOrdersByDateRange as RequestHandler);
+
+// Get orders by assigned staff
+router.get('/assigned/:staffId', getOrdersByAssignedTo as RequestHandler);
 
 // Get order by ID
 router.get('/:id', getOrder as RequestHandler);

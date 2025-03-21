@@ -41,6 +41,7 @@ export interface Product {
 // Order Types
 export type OrderStatus = 'pending' | 'dc' | 'invoice' | 'dispatched';
 export type PaymentCondition = 'immediate' | 'days15' | 'days30';
+export type PaymentStatus = 'paid' | 'unpaid' | 'partial';
 
 export interface OrderItem {
   id?: string;
@@ -52,24 +53,22 @@ export interface OrderItem {
 }
 
 export interface Order {
-  id?: string;
-  _id?: string; // MongoDB ID
-  customerId?: string;
+  _id: string;
+  orderNumber: string;
   customerName: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  items: OrderItem[];
-  total: number;
+  customerEmail: string;
+  customerPhone: string;
+  orderItems: OrderItem[];
   status: OrderStatus;
-  paymentCondition?: PaymentCondition;
-  dispatchDate?: Date;
+  paymentStatus: PaymentStatus;
+  total: number;
   notes?: string;
-  orderImage?: string; // Add order image field
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string;
-  isPaid?: boolean;
-  paidAt?: Date;
+  createdAt: string;
+  updatedAt: string;
+  orderImage?: string;
+  dispatchDate?: string;
+  scheduledDate?: string;
+  assignedTo?: string;
 }
 
 // Analytics Types

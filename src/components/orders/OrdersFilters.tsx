@@ -12,12 +12,14 @@ import { Badge } from '@/components/ui/badge';
 interface OrdersFiltersProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  activeTab: OrderStatus | 'all';
-  setActiveTab: (tab: OrderStatus | 'all') => void;
+  activeTab: OrderStatus | 'all' | 'my-orders';
+  setActiveTab: (tab: OrderStatus | 'all' | 'my-orders') => void;
   dateRange: { from?: Date; to?: Date };
   setDateRange: (range: { from?: Date; to?: Date }) => void;
   onRefresh: () => void;
   onCreateOrder: () => void;
+  showMyOrders?: boolean;
+  isAdmin?: boolean;
 }
 
 export function OrdersFilters({
@@ -29,7 +31,11 @@ export function OrdersFilters({
   setDateRange,
   onRefresh,
   onCreateOrder,
+  showMyOrders = false,
+  isAdmin = false,
 }: OrdersFiltersProps) {
+  const shouldShowMyOrders = showMyOrders && !isAdmin;
+  
   return (
     <div className="flex flex-col space-y-4">
       <div className="flex items-center justify-between">
@@ -92,9 +98,17 @@ export function OrdersFilters({
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as OrderStatus | 'all')}>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as OrderStatus | 'all' | 'my-orders')}>
         <TabsList>
           <TabsTrigger value="all">All Orders</TabsTrigger>
+          {shouldShowMyOrders && (
+            <TabsTrigger value="my-orders" className="flex items-center gap-1">
+              My Orders
+              <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary/10 text-primary rounded-sm">
+                Assigned
+              </span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="dc">DC Generated</TabsTrigger>
           <TabsTrigger value="invoice">Invoice Generated</TabsTrigger>

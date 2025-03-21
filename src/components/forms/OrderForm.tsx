@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -39,9 +39,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 
-import { OrderStatus, PaymentCondition, Product, OrderItem } from '@/lib/types';
+import { OrderStatus, PaymentCondition, Product, OrderItem, User } from '@/lib/types';
 import { getProducts, updateProduct } from '@/lib/data';
-import { createOrder } from '@/lib/api';
+import { createOrder, fetchStaff } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Order form schema
@@ -51,6 +51,7 @@ const orderFormSchema = z.object({
   customerEmail: z.string().email().optional().or(z.literal('')),
   status: z.enum(['pending', 'dc', 'invoice', 'dispatched']),
   paymentCondition: z.enum(['immediate', 'days15', 'days30']),
+  assignedTo: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -70,9 +71,25 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
+  const [staffMembers, setStaffMembers] = useState<User[]>([]);
   
   const products = getProducts();
   const availableProducts = products.filter(product => product.stock > 0);
+  
+  // Fetch staff members when component mounts
+  useEffect(() => {
+    const loadStaffMembers = async () => {
+      try {
+        const staff = await fetchStaff();
+        setStaffMembers(staff);
+      } catch (error) {
+        console.error("Error loading staff members:", error);
+        toast.error("Failed to load staff members");
+      }
+    };
+    
+    loadStaffMembers();
+  }, []);
   
   // Initialize form
   const form = useForm<OrderFormValues>({
@@ -83,6 +100,7 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
       customerEmail: '',
       status: 'pending',
       paymentCondition: 'immediate',
+      assignedTo: 'all',
       notes: '',
     },
   });
@@ -171,6 +189,7 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
         customerEmail: values.customerEmail || '',
         status: values.status,
         paymentCondition: values.paymentCondition,
+        assignedTo: values.assignedTo === 'all' ? null : values.assignedTo,
         notes: values.notes || '',
         items: sanitizedItems,
         total: calculateTotal(),
@@ -285,17 +304,18 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
                 />
               </div>
               
-              {/* Order Details */}
+              {/* Order Settings */}
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Order Details</h3>
+                <h3 className="text-lg font-medium">Order Settings</h3>
+                
                 <FormField
                   control={form.control}
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
+                      <FormLabel>Order Status</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
                         defaultValue={field.value}
                       >
                         <FormControl>
@@ -315,7 +335,6 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
                   )}
                 />
                 
-                {/* Payment Condition */}
                 <FormField
                   control={form.control}
                   name="paymentCondition"
@@ -326,25 +345,31 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
                         <RadioGroup
                           onValueChange={field.onChange}
                           defaultValue={field.value}
-                          className="flex flex-col space-y-1"
+                          className="flex space-x-4"
                         >
-                          <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
                               <RadioGroupItem value="immediate" />
                             </FormControl>
-                            <FormLabel className="font-normal">Immediate</FormLabel>
+                            <FormLabel className="font-normal">
+                              Immediate
+                            </FormLabel>
                           </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
                               <RadioGroupItem value="days15" />
                             </FormControl>
-                            <FormLabel className="font-normal">&gt;15 Days</FormLabel>
+                            <FormLabel className="font-normal">
+                              15 Days
+                            </FormLabel>
                           </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
                               <RadioGroupItem value="days30" />
                             </FormControl>
-                            <FormLabel className="font-normal">&gt;30 Days</FormLabel>
+                            <FormLabel className="font-normal">
+                              30 Days
+                            </FormLabel>
                           </FormItem>
                         </RadioGroup>
                       </FormControl>
@@ -355,71 +380,35 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
                 
                 <FormField
                   control={form.control}
-                  name="notes"
+                  name="assignedTo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Enter any additional notes"
-                          className="min-h-[100px]"
-                          {...field} 
-                        />
-                      </FormControl>
+                      <FormLabel>Assigned To</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select staff member" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">All Staff</SelectItem>
+                          {staffMembers.map((staff) => (
+                            <SelectItem 
+                              key={staff.id || staff._id} 
+                              value={staff.id || staff._id}
+                            >
+                              {staff.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
-                {/* Order Image Upload */}
-                <div className="space-y-2">
-                  <FormLabel>Order Image (Optional)</FormLabel>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="flex items-center gap-4">
-                      <label 
-                        htmlFor="order-image" 
-                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-md border-gray-300 cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-all duration-200"
-                      >
-                        {imagePreview ? (
-                          <div className="relative w-full h-full">
-                            <img 
-                              src={imagePreview} 
-                              alt="Order Preview" 
-                              className="w-full h-full object-contain rounded-md" 
-                            />
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="destructive"
-                              className="absolute top-1 right-1"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setOrderImage(null);
-                                setImagePreview(null);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                            <p className="text-sm text-muted-foreground">
-                              Click to upload or drag and drop
-                            </p>
-                          </div>
-                        )}
-                        <input
-                          id="order-image"
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleImageChange}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
             

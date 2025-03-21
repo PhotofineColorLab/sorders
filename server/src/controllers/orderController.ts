@@ -174,4 +174,30 @@ export const getOrdersByDateRange = async (req: Request, res: Response): Promise
   } catch (error) {
     res.status(500).json({ message: 'Error fetching orders by date range', error });
   }
+};
+
+// Get orders by assignedTo
+export const getOrdersByAssignedTo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { staffId } = req.params;
+    
+    if (!staffId) {
+      res.status(400).json({ message: 'Staff ID is required' });
+      return;
+    }
+    
+    console.log(`Searching for orders with staff ID: ${staffId}`);
+    
+    // Find orders where assignedTo is specifically the given staffId
+    const orders = await Order.find({
+      assignedTo: staffId
+    }).sort({ createdAt: -1 });
+    
+    console.log(`Found ${orders.length} orders specifically assigned to staff ID: ${staffId}`);
+    
+    res.json(orders);
+  } catch (error) {
+    console.error('Error fetching orders by assigned staff:', error);
+    res.status(500).json({ message: 'Error fetching orders by assigned staff', error });
+  }
 }; 

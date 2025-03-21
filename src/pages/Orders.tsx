@@ -12,13 +12,15 @@ import { MarkPaidDialog } from '@/components/orders/MarkPaidDialog';
 import { Order, OrderStatus } from '@/lib/types';
 import OrderForm from '@/components/forms/OrderForm';
 import { PaginationWrapper } from '@/components/ui/pagination-wrapper';
-import { fetchOrders, fetchOrdersByDateRange, deleteOrder, updateOrder, markOrderAsPaid } from '@/lib/api';
+import { fetchOrders, fetchOrdersByDateRange, fetchOrdersByAssignedTo, deleteOrder, updateOrder, markOrderAsPaid } from '@/lib/api';
 import { isAfter, isBefore, isEqual, startOfDay } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Orders() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('all');
+  const [activeTab, setActiveTab] = useState<OrderStatus | 'all' | 'my-orders'>('all');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -54,8 +56,31 @@ export default function Orders() {
       // If date range is selected, use that API instead of status filter
       if (dateRange.from && dateRange.to) {
         fetchedOrders = await fetchOrdersByDateRange(dateRange.from, dateRange.to);
-      } else {
+      } 
+      // If my-orders is selected, fetch orders assigned to current user
+      else if (activeTab === 'my-orders' && user) {
+        // Use _id if available, otherwise use id
+        const userId = user._id || user.id;
+        if (userId) {
+          console.log("Fetching orders for user:", userId);
+          fetchedOrders = await fetchOrdersByAssignedTo(userId);
+        } else {
+          console.error("User ID not found:", user);
+          toast.error("Could not determine user ID for assignments");
+          fetchedOrders = await fetchOrders();
+        }
+      }
+      // Otherwise fetch by status
+      else {
         fetchedOrders = await fetchOrders(activeTab === 'all' ? undefined : activeTab);
+        
+        // For staff members (non-admin), filter out orders that aren't assigned to them or to all
+        if (user && user.role !== 'admin') {
+          const userId = user._id || user.id;
+          fetchedOrders = fetchedOrders.filter(order => 
+            !order.assignedTo || order.assignedTo === userId
+          );
+        }
       }
       
       setOrders(fetchedOrders);
@@ -190,6 +215,8 @@ export default function Orders() {
           setDateRange={setDateRange}
           onRefresh={loadOrders}
           onCreateOrder={() => setIsCreateMode(true)}
+          showMyOrders={!!user}
+          isAdmin={user?.role === 'admin'}
         />
 
         <Card className="border shadow-sm">

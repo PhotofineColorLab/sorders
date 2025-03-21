@@ -234,6 +234,24 @@ export const fetchOrdersByDateRange = async (startDate: Date, endDate: Date) => 
   return response.json();
 };
 
+export const fetchOrdersByAssignedTo = async (staffId: string) => {
+  const token = localStorage.getItem('token');
+  
+  const url = `${API_URL}/orders/assigned/${staffId}`;
+  
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch assigned orders');
+  }
+
+  return response.json();
+};
+
 export const createOrder = async (formData: FormData) => {
   const token = localStorage.getItem('token');
   
