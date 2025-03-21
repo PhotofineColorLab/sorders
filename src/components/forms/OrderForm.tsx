@@ -41,21 +41,6 @@ import { getProducts, updateProduct } from '@/lib/data';
 import { createOrder } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Cloudinary upload function
-const uploadToCloudinary = async (file: File): Promise<string> => {
-  try {
-    // In a real app, this would be a fetch to your backend or directly to Cloudinary
-    // For demo purposes, we'll simulate a successful upload
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Return a fake Cloudinary URL for demonstration
-    return `https://res.cloudinary.com/demo/image/upload/${file.name}`;
-  } catch (error) {
-    console.error('Error uploading to Cloudinary:', error);
-    throw new Error('Failed to upload image');
-  }
-};
-
 // Order form schema
 const orderFormSchema = z.object({
   customerName: z.string().min(2, { message: 'Customer name is required' }),
@@ -165,14 +150,6 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
     setIsLoading(true);
     
     try {
-      // Handle image upload if present
-      let orderImageUrl = '';
-      if (orderImage) {
-        setUploadingImage(true);
-        orderImageUrl = await uploadToCloudinary(orderImage);
-        setUploadingImage(false);
-      }
-      
       // Set dispatchDate if status is dispatched
       const dispatchDate = values.status === 'dispatched' ? new Date() : undefined;
       
@@ -184,11 +161,8 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
         price: item.price
       }));
       
-      console.log('Original order items:', orderItems);
-      console.log('Sanitized order items:', sanitizedItems);
-      
-      // Create the order object for submission
-      const orderData: any = {
+      // Create the order data
+      const orderData = {
         customerName: values.customerName,
         customerPhone: values.customerPhone,
         customerEmail: values.customerEmail || '',
@@ -205,23 +179,28 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
         orderData.dispatchDate = dispatchDate;
       }
       
-      // Add orderImage only if it exists
-      if (orderImageUrl) {
-        orderData.orderImage = orderImageUrl;
+      // Create form data
+      const formData = new FormData();
+      
+      // Add order data
+      formData.append('orderData', JSON.stringify(orderData));
+      
+      // Add image if exists
+      if (orderImage) {
+        formData.append('orderImage', orderImage);
       }
-
-      console.log('Submitting order data:', JSON.stringify(orderData, null, 2));
       
-      // Create the order
-      await createOrder(orderData);
+      // Create order
+      await createOrder(formData);
       
-      // Update product stock levels
-      orderItems.forEach(item => {
+      // Update product stock
+      for (const item of orderItems) {
         const product = products.find(p => p.id === item.productId);
         if (product) {
-          updateProduct(product.id, { stock: product.stock - item.quantity });
+          const newStock = Math.max(0, product.stock - item.quantity);
+          await updateProduct(product.id, { stock: newStock });
         }
-      });
+      }
       
       toast.success('Order created successfully');
       
@@ -230,9 +209,9 @@ export default function OrderForm({ onSuccess }: OrderFormProps) {
       } else {
         navigate('/orders');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating order:', error);
-      toast.error(error.message || 'Failed to create order');
+      toast.error('Failed to create order');
     } finally {
       setIsLoading(false);
     }

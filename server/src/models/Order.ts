@@ -20,6 +20,7 @@ export interface IOrder extends Document {
   createdBy: string;
   paymentCondition?: 'cash' | 'credit';
   dispatchDate?: Date;
+  orderImage?: string;
 }
 
 const OrderItemSchema = new Schema({
@@ -50,7 +51,8 @@ const OrderSchema = new Schema({
     enum: ['cash', 'credit'],
     default: 'cash'
   },
-  dispatchDate: { type: Date }
+  dispatchDate: { type: Date },
+  orderImage: { type: String }
 });
 
 // Update the updatedAt timestamp before saving

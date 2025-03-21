@@ -212,15 +212,16 @@ export const fetchOrders = async (status?: string) => {
   return response.json();
 };
 
-export const createOrder = async (orderData: Omit<Order, 'id' | '_id' | 'createdAt' | 'updatedAt'>) => {
+export const createOrder = async (formData: FormData) => {
   const token = localStorage.getItem('token');
+  
   const response = await fetch(`${API_URL}/orders`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
+      // Don't set Content-Type here, let the browser set it with the boundary for FormData
     },
-    body: JSON.stringify(orderData),
+    body: formData,
   });
 
   if (!response.ok) {

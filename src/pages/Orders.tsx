@@ -149,7 +149,7 @@ export default function Orders() {
             ) : (
               <PaginationWrapper
                 data={filteredOrders}
-                itemsPerPage={10}
+                itemsPerPage={7}
               >
                 {(paginatedOrders) => (
                   <OrdersTable

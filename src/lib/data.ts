@@ -692,7 +692,7 @@ export const deleteProduct = (id: string) => {
   return null;
 };
 
-// CRUD operations for orders
+// // CRUD operations for orders
 export const getOrders = () => [...orders];
 
 export const getOrdersByStatus = (status: OrderStatus) => {
@@ -736,7 +736,7 @@ export const deleteOrder = (id: string) => {
   return null;
 };
 
-// CRUD operations for staff
+// // CRUD operations for staff
 export const getStaffMembers = () => [...staffMembers];
 
 export const getStaffMember = (id: string) => {
@@ -803,7 +803,7 @@ export const authenticateUser = (email: string, password: string) => {
   return user;
 };
 
-// Analytics data
+// // Analytics data
 export const getAnalytics = () => {
   const totalOrders = orders.length;
   const totalSales = orders.reduce((sum, order) => sum + order.total, 0);

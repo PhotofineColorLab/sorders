@@ -68,6 +68,22 @@ export function OrderViewDialog({
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
+          {order.orderImage && (
+            <div className="w-full">
+              <p className="text-sm font-medium mb-2">Order Image</p>
+              <div className="border rounded-md overflow-hidden">
+                <img 
+                  src={order.orderImage} 
+                  alt="Order document" 
+                  className="w-full h-auto max-h-[200px] object-contain"
+                  onClick={() => window.open(order.orderImage, '_blank')}
+                  style={{ cursor: 'pointer' }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Click image to view full size</p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium">Order ID</p>
