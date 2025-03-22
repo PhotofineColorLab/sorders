@@ -35,6 +35,7 @@ interface OrderViewDialogProps {
   order: Order | null;
   onStatusChange: (orderId: string, status: OrderStatus) => void;
   onMarkPaid?: (orderId: string) => void;
+  onEditOrder?: (order: Order) => void;
   formatCurrency: (value: number) => string;
 }
 
@@ -44,6 +45,7 @@ export function OrderViewDialog({
   order,
   onStatusChange,
   onMarkPaid,
+  onEditOrder,
   formatCurrency
 }: OrderViewDialogProps) {
   const [staffMembers, setStaffMembers] = useState<any[]>([]);
@@ -65,7 +67,7 @@ export function OrderViewDialog({
 
   if (!order) return null;
 
-  const getOrderId = (order: Order) => order._id || order.id || '';
+  const getOrderId = (order: Order) => order._id || '';
 
   const getPaymentConditionText = (condition?: string) => {
     switch (condition) {
@@ -84,7 +86,9 @@ export function OrderViewDialog({
   const getAssignedStaffName = () => {
     if (!order.assignedTo) return 'All Staff';
     
-    const assignedStaff = staffMembers.find(staff => staff._id === order.assignedTo || staff.id === order.assignedTo);
+    const assignedStaff = staffMembers.find(staff => 
+      (staff._id && staff._id === order.assignedTo) || (staff.id && staff.id === order.assignedTo)
+    );
     return assignedStaff ? assignedStaff.name : 'Unknown Staff';
   };
 
@@ -136,7 +140,7 @@ export function OrderViewDialog({
                 <OrderStatusBadge order={order} />
                 <PaymentStatusBadge 
                   order={order} 
-                  onClick={onMarkPaid && !order.isPaid ? () => {
+                  onClick={onMarkPaid && order.isPaid === false ? () => {
                     onMarkPaid(getOrderId(order));
                     onOpenChange(false);
                   } : undefined}
@@ -159,7 +163,7 @@ export function OrderViewDialog({
               <div>
                 <p className="text-sm font-medium">Payment Date</p>
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(order.paidAt), 'MMM dd, yyyy')}
+                  {format(new Date(order.paidAt.toString()), 'MMM dd, yyyy')}
                 </p>
               </div>
             )}
@@ -198,7 +202,7 @@ export function OrderViewDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {order.items.map((item, index) => (
+                  {(order.orderItems || order.items || []).map((item, index) => (
                     <TableRow key={item._id || item.id || index}>
                       <TableCell>{item.productName}</TableCell>
                       <TableCell className="text-right">{item.quantity}</TableCell>
@@ -245,12 +249,24 @@ export function OrderViewDialog({
               </SelectContent>
             </Select>
             
-            {order.status === 'dispatched' && !order.isPaid && onMarkPaid && (
+            {order.status === 'dispatched' && order.isPaid === false && onMarkPaid && (
               <Button onClick={() => {
                 onMarkPaid(getOrderId(order));
                 onOpenChange(false);
               }}>
                 Mark as Paid
+              </Button>
+            )}
+            
+            {onEditOrder && (
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  onEditOrder(order);
+                  onOpenChange(false);
+                }}
+              >
+                Edit Order
               </Button>
             )}
           </div>

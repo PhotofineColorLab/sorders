@@ -291,6 +291,26 @@ export const updateOrder = async (id: string, orderData: Partial<Order>) => {
   return response.json();
 };
 
+export const updateOrderWithImage = async (id: string, formData: FormData) => {
+  const token = localStorage.getItem('token');
+  
+  const response = await fetch(`${API_URL}/orders/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // Don't set Content-Type here, let the browser set it with the boundary for FormData
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to update order');
+  }
+
+  return response.json();
+};
+
 export const markOrderAsPaid = async (id: string) => {
   const token = localStorage.getItem('token');
   const response = await fetch(`${API_URL}/orders/${id}/paid`, {

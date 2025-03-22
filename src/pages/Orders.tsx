@@ -11,6 +11,7 @@ import { DeleteOrderDialog } from '@/components/orders/DeleteOrderDialog';
 import { MarkPaidDialog } from '@/components/orders/MarkPaidDialog';
 import { Order, OrderStatus } from '@/lib/types';
 import OrderForm from '@/components/forms/OrderForm';
+import UpdateOrderForm from '@/components/forms/UpdateOrderForm';
 import { PaginationWrapper } from '@/components/ui/pagination-wrapper';
 import { fetchOrders, fetchOrdersByDateRange, fetchOrdersByAssignedTo, deleteOrder, updateOrder, markOrderAsPaid } from '@/lib/api';
 import { isAfter, isBefore, isEqual, startOfDay } from 'date-fns';
@@ -29,6 +30,7 @@ export default function Orders() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isMarkPaidDialogOpen, setIsMarkPaidDialogOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -170,6 +172,11 @@ export default function Orders() {
     }
   };
 
+  const handleUpdateOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setIsUpdateMode(true);
+  };
+
   const filteredOrders = orders.filter(order => {
     // First filter by search term
     const matchesSearch = searchTerm === '' 
@@ -192,6 +199,25 @@ export default function Orders() {
           setIsCreateMode(false);
           loadOrders();
         }} />
+      </DashboardLayout>
+    );
+  }
+
+  if (isUpdateMode && selectedOrder) {
+    return (
+      <DashboardLayout>
+        <UpdateOrderForm 
+          order={selectedOrder}
+          onSuccess={() => {
+            setIsUpdateMode(false);
+            setSelectedOrder(null);
+            loadOrders();
+          }}
+          onCancel={() => {
+            setIsUpdateMode(false);
+            setSelectedOrder(null);
+          }}
+        />
       </DashboardLayout>
     );
   }
@@ -242,6 +268,7 @@ export default function Orders() {
                       setSelectedOrder(order);
                       setIsViewDialogOpen(true);
                     }}
+                    onUpdateOrder={handleUpdateOrder}
                     onDeleteOrder={(order) => {
                       setSelectedOrder(order);
                       setIsDeleteDialogOpen(true);
@@ -267,6 +294,7 @@ export default function Orders() {
         order={selectedOrder}
         onStatusChange={handleStatusChange}
         onMarkPaid={handleMarkPaid}
+        onEditOrder={handleUpdateOrder}
         formatCurrency={formatCurrency}
       />
 

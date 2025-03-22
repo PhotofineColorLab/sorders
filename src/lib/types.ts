@@ -3,6 +3,7 @@ export type UserRole = 'admin' | 'staff';
 
 export interface User {
   id: string;
+  _id?: string; // MongoDB ID
   name: string;
   email: string;
   role: UserRole;
@@ -54,13 +55,16 @@ export interface OrderItem {
 
 export interface Order {
   _id: string;
+  id?: string;
   orderNumber: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   orderItems: OrderItem[];
+  items?: OrderItem[]; // For backward compatibility
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  paymentCondition?: PaymentCondition;
   total: number;
   notes?: string;
   createdAt: string;
@@ -69,6 +73,8 @@ export interface Order {
   dispatchDate?: string;
   scheduledDate?: string;
   assignedTo?: string;
+  isPaid?: boolean;
+  paidAt?: string | Date;
 }
 
 // Analytics Types

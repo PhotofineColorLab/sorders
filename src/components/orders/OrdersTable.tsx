@@ -29,6 +29,7 @@ interface OrdersTableProps {
   onDeleteOrder: (order: Order) => void;
   onMarkPaid: (order: Order) => void;
   onStatusChange: (orderId: string, status: OrderStatus) => void;
+  onUpdateOrder: (order: Order) => void;
   isUpdateLoading: boolean;
   formatCurrency: (value: number) => string;
 }
@@ -39,6 +40,7 @@ export function OrdersTable({
   onDeleteOrder,
   onMarkPaid,
   onStatusChange,
+  onUpdateOrder,
   isUpdateLoading,
   formatCurrency
 }: OrdersTableProps) {
@@ -92,6 +94,12 @@ export function OrdersTable({
                         onClick={() => onViewOrder(order)}
                       >
                         View details
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuItem 
+                        onClick={() => onUpdateOrder(order)}
+                      >
+                        Edit Order
                       </DropdownMenuItem>
                       
                       {order.status === 'dispatched' && !order.isPaid && (
